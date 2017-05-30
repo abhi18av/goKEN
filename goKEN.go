@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"os"
+	"io"
 	"strings"
 	"sync"
 
