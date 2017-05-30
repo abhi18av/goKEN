@@ -177,6 +177,7 @@ type TranscriptPage struct {
 	AvailableTranscripts []string                  `json:"AvailableTranscripts"`
 	DatePosted           string                    `json:"DatePosted"`
 	Rated                string                    `json:"Rated"`
+	ImageURL             string                    `json:"ImageURL"`
 	TalkTranscript       map[string]talkTranscript `json:"TalkTranscript"`
 }
 
@@ -335,6 +336,7 @@ func transcriptFetchCommonInfo(url string) TranscriptPage {
 		AvailableTranscripts: transcriptAvailableTranscripts(transcriptPage),
 		DatePosted:           transcriptDatePosted(transcriptPage),
 		Rated:                transcriptRated(transcriptPage),
+		ImageURL:             transcriptGetImage(transcriptPage, url),
 	}
 	return transcriptPageInstance
 }
@@ -620,4 +622,32 @@ func transcriptRated(doc *goquery.Document) string {
 	//println(r[0])
 	//println(r[1])
 	//return(p[3])
+}
+
+
+
+func transcriptGetImage(doc *goquery.Document, videoURL string) string {
+
+	imageURL, _ := doc.Find(".thumb__image").Attr("src")
+
+	response, e := http.Get(imageURL)
+	checkErr(e)
+	defer response.Body.Close()
+
+	//open a file for writing
+	htmlSplit := strings.Split(videoURL, "/")
+	talkName := htmlSplit[len(htmlSplit)-2]
+
+	// Establish a file name
+	fileName := "./" + talkName + ".jpg"
+
+	f, err := os.Create(fileName)
+	checkErr(err)
+	defer f.Close()
+
+	// Use io.Copy to just dump the response body to the file. This supports huge files
+	_, err = io.Copy(f, response.Body)
+	checkErr(err)
+
+	return imageURL
 }
