@@ -1,9 +1,9 @@
 package main
 
 import (
+	"io"
 	"net/http"
 	"os"
-	"io"
 	"strings"
 	"sync"
 
@@ -160,7 +160,6 @@ func genTranscriptURLs(langCodes map[string]string, availableLanguages []string,
 		//fmt.Println(x)
 		urls = append(urls, newURL)
 	}
-
 	//numOfURLs := len(urls)
 	//fmt.Println("generated URLs : ", numOfURLs)
 
@@ -198,7 +197,9 @@ func main() {
 
 	// Checking if there are any subtitles at all
 	// In case there are, we send a default query to fetch the list of available languages
-	numOfSubtitles, _ := strconv.ParseInt(videoPageInfo.AvailableSubtitlesCount, 10, 64)
+	numOfSubtitles, e1 := strconv.ParseInt(videoPageInfo.AvailableSubtitlesCount, 10, 64)
+
+	checkErr(e1, "ERROR: in parsing available subtitiles")
 
 	// This function will cause the program to EXIT if there are no subtitles
 	// Else we continue to fill the basic page
@@ -268,29 +269,32 @@ func main() {
 
 func writeJSON(aStruct TedTalk) {
 
-	temp1, _ := json.Marshal(aStruct)
+	temp1, e1 := json.Marshal(aStruct)
+	checkErr(e1, "ERROR: unable to marshal the talk struct in writeJSON function")
+
 	//fmt.Println(string(temp1))
 	htmlSplit := strings.Split(aStruct.TalkVideoPage.TalkURL, "/")
 	talkName := htmlSplit[len(htmlSplit)-1]
 
 	fileName := "./" + talkName + ".json"
 
-	f, err := os.Create(fileName)
-	checkErr(err)
+	f, e2 := os.Create(fileName)
+
+	checkErr(e2, "ERROR: unable to create a file on disk.")
 
 	f.Write(temp1)
 	defer f.Close()
 }
 
-func checkErr(e error) {
+func checkErr(e error, errInfo string) {
 	if e != nil {
-		panic(e)
+		panic(errInfo)
 	}
 }
 
 func checkInternet() {
 	// Make a GET request
-	rs, err := http.Get("https://google.com")
+	result, err := http.Get("https://google.com")
 	// Process response
 	if err != nil {
 		color.Red("We're OFF-Line!")
@@ -300,7 +304,7 @@ func checkInternet() {
 		os.Exit(1)
 	}
 
-	defer rs.Body.Close()
+	defer result.Body.Close()
 
 }
 
@@ -313,7 +317,9 @@ func exitIfNoSubtitlesExist(numOfSubtitles int64) {
 
 func videoFetchInfo(url string) VideoPage {
 
-	videoPage, _ := goquery.NewDocument(url)
+	videoPage, e1 := goquery.NewDocument(url)
+
+	checkErr(e1, "ERROR: unable to fetch the video page in videoFetchFunction")
 
 	videoPageInstance := VideoPage{
 		TalkURL:                 videoTalkURL(url),
@@ -330,7 +336,8 @@ func videoFetchInfo(url string) VideoPage {
 }
 
 func transcriptFetchCommonInfo(url string) TranscriptPage {
-	transcriptPage, _ := goquery.NewDocument(url)
+	transcriptPage, e1 := goquery.NewDocument(url)
+	checkErr(e1, "ERROR: unable to fetch the common transcript page info.")
 
 	transcriptPageInstance := TranscriptPage{
 
@@ -345,8 +352,9 @@ func transcriptFetchCommonInfo(url string) TranscriptPage {
 func transcriptFetchUncommonInfo(url string) (talkTranscript, string) {
 
 	//fmt.Println(url)
-	transcriptPage, _ := goquery.NewDocument(url)
+	transcriptPage, e1 := goquery.NewDocument(url)
 	//fmt.Println(transcriptLocalTalkTitle(transcriptPage))
+	checkErr(e1, "ERROR: unable to fetch the Uncommon transcript page info.")
 
 	transcript := talkTranscript{
 
@@ -415,21 +423,21 @@ func videoDuration(doc *goquery.Document) string {
 // TimeFilmed : Time at which the talk was filmed
 func videoTimeFilmed(doc *goquery.Document) string {
 
-	time_filmed := doc.Find(".player-hero__meta").Contents().Text()
+	timeFilmed := doc.Find(".player-hero__meta").Contents().Text()
 
 	//	fmt.Println(time_filmed)
 
-	y := strings.Split(time_filmed, "\n")
+	y := strings.Split(timeFilmed, "\n")
 	//fmt.Println(y[11])
 	return y[11]
 }
 
 func videoTalkViewsCount(doc *goquery.Document) string {
 
-	talk_views_count := doc.Find("#sharing-count").Contents().Text()
-	//	fmt.Println(talk_views_count)
+	talkViewsCount := doc.Find("#sharing-count").Contents().Text()
+	//	fmt.Println(talkViewsCount)
 
-	a := strings.Split(talk_views_count, "\n")
+	a := strings.Split(talkViewsCount, "\n")
 	b := strings.TrimSpace(a[2])
 	//fmt.Println(b)
 	return b
@@ -438,9 +446,9 @@ func videoTalkViewsCount(doc *goquery.Document) string {
 
 func videoTalkTopicsList(doc *goquery.Document) []string {
 
-	talk_topics := doc.Find(".talk-topics__list").Contents().Text()
+	talkTopics := doc.Find(".talk-topics__list").Contents().Text()
 
-	c := strings.Split(talk_topics, "\n")
+	c := strings.Split(talkTopics, "\n")
 	var topics []string
 	for i := 3; i < len(c); i++ {
 		//fmt.Println(c[i])
@@ -455,9 +463,9 @@ func videoTalkTopicsList(doc *goquery.Document) []string {
 
 func videoTalkCommentsCount(doc *goquery.Document) string {
 
-	talk_comments_count := doc.Find(".h11").Contents().Text()
-	//fmt.Println(talk_comments_count)
-	d := strings.Split(talk_comments_count, " ")
+	talkCommentsCount := doc.Find(".h11").Contents().Text()
+	//fmt.Println(talkCommentsCount)
+	d := strings.Split(talkCommentsCount, " ")
 	//fmt.Println(d[0])
 	return strings.TrimLeft(d[0], "\n")
 }
@@ -625,14 +633,14 @@ func transcriptRated(doc *goquery.Document) string {
 	//return(p[3])
 }
 
-
-
 func transcriptGetImage(doc *goquery.Document, videoURL string) string {
 
 	imageURL, _ := doc.Find(".thumb__image").Attr("src")
 
-	response, e := http.Get(imageURL)
-	checkErr(e)
+	response, e1 := http.Get(imageURL)
+
+	checkErr(e1, "ERROR: unable to fetch the image from the transcript page")
+
 	defer response.Body.Close()
 
 	//open a file for writing
@@ -642,13 +650,15 @@ func transcriptGetImage(doc *goquery.Document, videoURL string) string {
 	// Establish a file name
 	fileName := "./" + talkName + ".jpg"
 
-	f, err := os.Create(fileName)
-	checkErr(err)
+	f, e2 := os.Create(fileName)
+
+	checkErr(e2, "ERROR: unable to create a file on disk in transcriptGetImage()")
+
 	defer f.Close()
 
 	// Use io.Copy to just dump the response body to the file. This supports huge files
-	_, err = io.Copy(f, response.Body)
-	checkErr(err)
+	_, e3 := io.Copy(f, response.Body)
+	checkErr(e3, "ERROR: unable to copy the body of response in transcriptGetImage()")
 
 	return imageURL
 }
