@@ -269,7 +269,7 @@ func main() {
 
 func writeJSON(aStruct TedTalk) {
 
-	temp1, e1 := json.Marshal(aStruct)
+	temp1, e1 := json.MarshalIndent(aStruct, "", "  ")
 	checkErr(e1, "ERROR: unable to marshal the talk struct in writeJSON function")
 
 	//fmt.Println(string(temp1))
